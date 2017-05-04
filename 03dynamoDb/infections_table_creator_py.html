@@ -1,0 +1,152 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+"http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en-US">
+<head>
+<meta http-equiv="X-UA-Compatible" content="IE=edge" />
+<title>infections_table_creator.py</title>
+
+<script type="text/javascript" src=
+"https://d2lrzjb0vjvpn5.cloudfront.net/developing/v2.0/lab-common/static/syntaxhighlighter_3.0.83/scripts/shCore.js">
+</script>
+
+<script type="text/javascript" src=
+"https://d2lrzjb0vjvpn5.cloudfront.net/developing/v2.0/lab-common/static/syntaxhighlighter_3.0.83/scripts/shBrushJava.js">
+</script>
+
+<script type="text/javascript" src=
+"https://d2lrzjb0vjvpn5.cloudfront.net/developing/v2.0/lab-common/static/syntaxhighlighter_3.0.83/scripts/shBrushCSharp.js">
+</script>
+
+<script type="text/javascript" src=
+"https://d2lrzjb0vjvpn5.cloudfront.net/developing/v2.0/lab-common/static/syntaxhighlighter_3.0.83/scripts/shBrushPython.js">
+</script>
+
+<script type="text/javascript" src=
+"https://d2lrzjb0vjvpn5.cloudfront.net/developing/v2.0/lab-common/static/syntaxhighlighter_3.0.83/scripts/shBrushJScript.js">
+</script>
+
+<script type="text/javascript" src=
+"https://d2lrzjb0vjvpn5.cloudfront.net/developing/v2.0/lab-common/static/syntaxhighlighter_3.0.83/scripts/shBrushXml.js">
+</script>
+
+<script type="text/javascript" src=
+"https://d2lrzjb0vjvpn5.cloudfront.net/developing/v2.0/lab-common/static/syntaxhighlighter_3.0.83/scripts/shBrushCss.js">
+</script>
+
+<link type="text/css" rel="stylesheet" href=
+"https://d2lrzjb0vjvpn5.cloudfront.net/developing/v2.0/lab-common/static/syntaxhighlighter_3.0.83/styles/shCoreDefault.css" />
+<script type="text/javascript">
+SyntaxHighlighter.all();
+SyntaxHighlighter.defaults['gutter'] = true;
+SyntaxHighlighter.defaults['smart-tabs'] = false;
+</script>
+
+<style type="text/css">
+/* styles specific to this page */
+
+.syntaxhighlighter { overflow-y: hidden !important; }
+
+.homepagediv {
+float: right;
+margin: 0px 15px 10px 3em;
+}
+.clear {
+clear:both;
+}
+/* styles specific to this page end */
+</style>
+</head>
+<body>
+
+<h1>infections_table_creator.py</h1>
+
+<pre class='brush: py; highlight: [38, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57]'>
+# Copyright 2015 Amazon Web Services, Inc. or its affiliates. All rights reserved.
+
+import time
+import utils
+from botocore.exceptions import EndpointConnectionError
+
+
+INFECTIONS_TABLE_NAME = utils.LAB_S3_INFECTIONS_TABLE_NAME
+CITY_DATE_INDEX_NAME = "InfectionsByCityDate"
+HTTP_STATUS_SUCCESS = 200
+
+def removeTable(tableName=INFECTIONS_TABLE_NAME):
+    #Removes the tableName from the region given as input
+    rval = True
+    if utils.isTableActive(tableName):
+        print("{0} Table exists and will be removed.".format(tableName))
+        try:
+            rval = False
+            dynamoDB = utils.connect2Service('dynamodb')
+            table = dynamoDB.Table(tableName)
+            resp = table.delete()
+            time.sleep(15)
+            if resp['ResponseMetadata']['HTTPStatusCode'] == HTTP_STATUS_SUCCESS:
+                rval = True
+                print("{0} Table has been deleted.".format(tableName))
+        except Exception as err:
+            print("Existing table deletion failed: {0} Table".format(tableName))
+            print("Error Message: {0}".format(err))
+            rval = False
+    return rval
+
+def createInfectionsTable(tableName=INFECTIONS_TABLE_NAME):
+    rval = False
+    dynamoDB = utils.connect2Service('dynamodb')
+    #removeTable method is provided to clean up the created DynamoDB tables every time you run the code.
+    if removeTable(tableName):
+        try:
+            #STUDENT TODO: Create Infections table with the fields, 'PatientId', 'City', and 'Date'
+            #Specify the GlobalAllIndex name in the query
+            table = dynamoDB.create_table(TableName=tableName,                         #@Del
+                        KeySchema=[{'AttributeName':'PatientId', 'KeyType':'HASH'}],   #@Del
+                        AttributeDefinitions=[                                         #@Del
+                                {'AttributeName':'PatientId', 'AttributeType':'S'},        #@Del
+                                {'AttributeName':'City', 'AttributeType':'S'},             #@Del
+                                {'AttributeName':'Date', 'AttributeType':'S'}              #@Del
+                            ],                                                             #@Del
+                        GlobalSecondaryIndexes=[                           #@Del
+                                {'IndexName': CITY_DATE_INDEX_NAME,        #@Del
+                                 'KeySchema':[                             #@Del
+                                         {'AttributeName': 'City', 'KeyType': 'HASH'},          #@Del
+                                         {'AttributeName': 'Date', 'KeyType': 'RANGE'}          #@Del
+                                     ],                                      #@Del
+                                'Projection':{'ProjectionType': 'ALL'},      #@Del
+                                'ProvisionedThroughput':{'ReadCapacityUnits': 5, 'WriteCapacityUnits': 10} } #@Del
+                            ],      #@Del
+                        ProvisionedThroughput={'ReadCapacityUnits':5, 'WriteCapacityUnits':10}         #@Del
+                )         #@Del
+            #Wait for the table creation and the status to become active.
+            time.sleep(15)
+            if utils.isTableActive(tableName):
+                rval = True
+        except Exception as err:
+            print("{0} Table could not be created".format(tableName))
+            print("Error Message: {0}".format(err))
+    return rval
+
+if __name__ == '__main__':
+    print('===============================================================')
+    print('Lab 3 DynamoDB - Infections Table creation')
+    print('===============================================================')
+    isTableCreated = createInfectionsTable()
+    print(INFECTIONS_TABLE_NAME + " Table created")
+
+</pre>
+
+
+
+<div class="clear"></div>
+
+<hr />
+<noscript>
+<p>Scripting on this page highlights syntax, but does not change the content in any way.</p>
+
+</noscript>
+
+
+</body>
+</html>

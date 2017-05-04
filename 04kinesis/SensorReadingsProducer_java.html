@@ -1,0 +1,212 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+"http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en-US">
+<head>
+<meta http-equiv="X-UA-Compatible" content="IE=edge" />
+<title>SensorReadingsProducer.java</title>
+
+<script type="text/javascript" src=
+"https://d2lrzjb0vjvpn5.cloudfront.net/developing/v2.0/lab-common/static/syntaxhighlighter_3.0.83/scripts/shCore.js">
+</script>
+
+<script type="text/javascript" src=
+"https://d2lrzjb0vjvpn5.cloudfront.net/developing/v2.0/lab-common/static/syntaxhighlighter_3.0.83/scripts/shBrushJava.js">
+</script>
+
+<script type="text/javascript" src=
+"https://d2lrzjb0vjvpn5.cloudfront.net/developing/v2.0/lab-common/static/syntaxhighlighter_3.0.83/scripts/shBrushCSharp.js">
+</script>
+
+<script type="text/javascript" src=
+"https://d2lrzjb0vjvpn5.cloudfront.net/developing/v2.0/lab-common/static/syntaxhighlighter_3.0.83/scripts/shBrushPython.js">
+</script>
+
+<script type="text/javascript" src=
+"https://d2lrzjb0vjvpn5.cloudfront.net/developing/v2.0/lab-common/static/syntaxhighlighter_3.0.83/scripts/shBrushJScript.js">
+</script>
+
+<script type="text/javascript" src=
+"https://d2lrzjb0vjvpn5.cloudfront.net/developing/v2.0/lab-common/static/syntaxhighlighter_3.0.83/scripts/shBrushXml.js">
+</script>
+
+<script type="text/javascript" src=
+"https://d2lrzjb0vjvpn5.cloudfront.net/developing/v2.0/lab-common/static/syntaxhighlighter_3.0.83/scripts/shBrushCss.js">
+</script>
+
+<link type="text/css" rel="stylesheet" href=
+"https://d2lrzjb0vjvpn5.cloudfront.net/developing/v2.0/lab-common/static/syntaxhighlighter_3.0.83/styles/shCoreDefault.css" />
+<script type="text/javascript">
+SyntaxHighlighter.all();
+SyntaxHighlighter.defaults['gutter'] = true;
+SyntaxHighlighter.defaults['smart-tabs'] = false;
+</script>
+
+<style type="text/css">
+/* styles specific to this page */
+
+.syntaxhighlighter { overflow-y: hidden !important; }
+
+.homepagediv {
+float: right;
+margin: 0px 15px 10px 3em;
+}
+.clear {
+clear:both;
+}
+/* styles specific to this page end */
+</style>
+</head>
+<body>
+
+<h1>SensorReadingsProducer.java</h1>
+
+<pre class='brush: java; highlight: [37, 38, 39, 41, 42, 44, 45, 46, 47, 48, 49, 50, 51, 53, 54, 55, 56, 57, 58, 59, 60, 64, 65, 66, 68, 69]'>
+// Copyright 2015 Amazon Web Services, Inc. or its affiliates. All rights reserved.
+
+import java.nio.ByteBuffer;
+import java.nio.charset.Charset;
+import java.util.Random;
+
+import com.amazonaws.regions.Region;
+import com.amazonaws.services.kinesis.producer.KinesisProducer;
+import com.amazonaws.services.kinesis.producer.KinesisProducerConfiguration;
+import com.amazonaws.services.kinesis.producer.UserRecordResult;
+import com.google.common.util.concurrent.FutureCallback;
+import com.google.common.util.concurrent.Futures;
+import com.google.common.util.concurrent.ListenableFuture;
+
+// The SensorReadingsProducer class generates data for sensor readings and publishes records to a Kinesis stream.
+public class SensorReadingsProducer {
+
+    // Before running the code, check that the ~/.aws/credentials file contains your credentials.
+
+    public static final String STREAM_NAME = StreamCreator.STREAM_NAME;
+    public static final Region REGION = Utils.getRegion();
+    public static final int TOTAL_NUM_EVENTS = 200;
+    private final Random RANDOM = new Random();
+
+    private static SensorReadingsProducer sensorReadingsProducer = null;
+
+    private int successCounter = 0;
+
+    public static void main(String[] args) {
+        sensorReadingsProducer = getSensorReadingsProducer();
+        sensorReadingsProducer.addDataToStream();
+    }
+
+    private void addDataToStream() {
+        SensorData sensorData = null;
+
+        // STUDENT TODO: Create an instance of KinesisProducerConfiguration. Set the region by using REGION.getName().
+        KinesisProducerConfiguration config = new KinesisProducerConfiguration(); // @Del
+        config.setRegion(REGION.getName()); // @Del
+
+        // STUDENT TODO: Instantiate a KinesisProducer using the configuration defined.
+        KinesisProducer kinesisProducer = new KinesisProducer(config); // @Del
+
+        // STUDENT TODO: Create a FutureCallback to store the results of asynchronous call to add data to Kinesis stream.
+        FutureCallback&lt;UserRecordResult&gt; myCallback = // @Del
+        new FutureCallback&lt;UserRecordResult&gt;() { // @Del
+            @Override // @Del
+            public void onFailure(Throwable t) { // @Del
+                System.out.println("Failed to add record to stream."); // @Del
+                t.printStackTrace(); // @Del
+            }; // @Del
+
+            @Override // @Del
+            public void onSuccess(UserRecordResult result) { // @Del
+                successCounter++; // @Del
+                if (successCounter == TOTAL_NUM_EVENTS) { // @Del
+                    System.out.println("Number of records added records to stream. :  " + successCounter); // @Del
+                } // @Del
+            }; // @Del
+        }; // @Del
+
+        for (int readingCounter = 0; readingCounter &lt; TOTAL_NUM_EVENTS; readingCounter++) {
+            sensorData = generateData(readingCounter);
+            // STUDENT TODO: Use sensorData.sensorId as partition key. Use sensorData.data as data for record.
+            ListenableFuture&lt;UserRecordResult&gt; future = // @Del
+            kinesisProducer.addUserRecord(STREAM_NAME, sensorData.sensorId, sensorData.data); // @Del
+
+            // STUDENT TODO: Add callback to Futures object
+            Futures.addCallback(future, myCallback); // @Del
+        }
+    }
+
+    // Generates sensor data. DO NOT MODIFY THIS METHOD.
+    private SensorData generateData(int readingCounter) {
+        String sensorId = getSensorId(readingCounter);
+        int temperature = getRandomTemperature(readingCounter);
+
+        String data = sensorId + ":" + temperature;
+        ByteBuffer dataBytes = null;
+
+        dataBytes = ByteBuffer.wrap(data.getBytes(Charset.forName("UTF-8")));
+
+        return this.new SensorData(sensorId, dataBytes);
+    }
+
+    private String getSensorId(int readingCounter) {
+        String sensorId = null;
+        String[] sensorIds = { "A12345", "Z09876" };
+
+        if (readingCounter % 2 == 0) {
+            sensorId = sensorIds[0];
+        } else {
+            sensorId = sensorIds[1];
+        }
+
+        return sensorId;
+    }
+
+    private int getRandomTemperature(int readingCounter) {
+        int temperature = 0;
+        int randomNumber = RANDOM.nextInt(10);
+
+        if (readingCounter &gt; 100 &amp;&amp; readingCounter &lt; 150 &amp;&amp; readingCounter % 2 == 0) {
+            temperature = randomNumber + 50;
+        } else {
+            temperature = randomNumber + 30;
+        }
+        return temperature;
+    }
+
+    public static SensorReadingsProducer getSensorReadingsProducer() {
+        if (sensorReadingsProducer == null) {
+            sensorReadingsProducer = new SensorReadingsProducer();
+        }
+        return sensorReadingsProducer;
+    }
+
+    public int getSuccessCounter() {
+        return successCounter;
+    }
+
+    // Object used to pass around sensor id and data.
+    private class SensorData {
+        private String sensorId;
+        private ByteBuffer data;
+
+        private SensorData(String id, ByteBuffer sData) {
+            sensorId = id;
+            data = sData;
+        }
+    }
+}
+
+</pre>
+
+
+
+<div class="clear"></div>
+
+<hr />
+<noscript>
+<p>Scripting on this page highlights syntax, but does not change the content in any way.</p>
+
+</noscript>
+
+
+</body>
+</html>

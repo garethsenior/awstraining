@@ -1,0 +1,160 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+"http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en-US">
+<head>
+<meta http-equiv="X-UA-Compatible" content="IE=edge" />
+<title>infections_data_uploader.py</title>
+
+<script type="text/javascript" src=
+"https://d2lrzjb0vjvpn5.cloudfront.net/developing/v2.0/lab-common/static/syntaxhighlighter_3.0.83/scripts/shCore.js">
+</script>
+
+<script type="text/javascript" src=
+"https://d2lrzjb0vjvpn5.cloudfront.net/developing/v2.0/lab-common/static/syntaxhighlighter_3.0.83/scripts/shBrushJava.js">
+</script>
+
+<script type="text/javascript" src=
+"https://d2lrzjb0vjvpn5.cloudfront.net/developing/v2.0/lab-common/static/syntaxhighlighter_3.0.83/scripts/shBrushCSharp.js">
+</script>
+
+<script type="text/javascript" src=
+"https://d2lrzjb0vjvpn5.cloudfront.net/developing/v2.0/lab-common/static/syntaxhighlighter_3.0.83/scripts/shBrushPython.js">
+</script>
+
+<script type="text/javascript" src=
+"https://d2lrzjb0vjvpn5.cloudfront.net/developing/v2.0/lab-common/static/syntaxhighlighter_3.0.83/scripts/shBrushJScript.js">
+</script>
+
+<script type="text/javascript" src=
+"https://d2lrzjb0vjvpn5.cloudfront.net/developing/v2.0/lab-common/static/syntaxhighlighter_3.0.83/scripts/shBrushXml.js">
+</script>
+
+<script type="text/javascript" src=
+"https://d2lrzjb0vjvpn5.cloudfront.net/developing/v2.0/lab-common/static/syntaxhighlighter_3.0.83/scripts/shBrushCss.js">
+</script>
+
+<link type="text/css" rel="stylesheet" href=
+"https://d2lrzjb0vjvpn5.cloudfront.net/developing/v2.0/lab-common/static/syntaxhighlighter_3.0.83/styles/shCoreDefault.css" />
+<script type="text/javascript">
+SyntaxHighlighter.all();
+SyntaxHighlighter.defaults['gutter'] = true;
+SyntaxHighlighter.defaults['smart-tabs'] = false;
+</script>
+
+<style type="text/css">
+/* styles specific to this page */
+
+.syntaxhighlighter { overflow-y: hidden !important; }
+
+.homepagediv {
+float: right;
+margin: 0px 15px 10px 3em;
+}
+.clear {
+clear:both;
+}
+/* styles specific to this page end */
+</style>
+</head>
+<body>
+
+<h1>infections_data_uploader.py</h1>
+
+<pre class='brush: py; highlight: [48, 52, 53, 54, 55, 56]'>
+# Copyright 2015 Amazon Web Services, Inc. or its affiliates. All rights reserved.
+
+import time, csv
+from botocore.exceptions import ClientError
+import utils
+
+BUCKET_NAME = utils.LAB_S3_BUCKET_NAME
+BUCKET_REGION = utils.LAB_S3_BUCKET_REGION
+
+INFECTIONS_DATA_FILE_KEY = utils.LAB_S3_INFECTIONS_DATA_FILE_KEY
+FILE_NAME = utils.LAB_S3_FILE_KEY
+INFECTIONS_TABLE_NAME = utils.LAB_S3_INFECTIONS_TABLE_NAME
+DELIMITER=","    #Delimiter character to separate CSV values
+HTTP_STATUS_SUCCESS = 200
+
+def loadInfectionsData(
+        tableName=INFECTIONS_TABLE_NAME, bucketRegion=BUCKET_REGION,
+        bucket=BUCKET_NAME, fKey=INFECTIONS_DATA_FILE_KEY, FName=FILE_NAME):
+    #Use the Python csv module to read the contents and add items to the given Infections table
+    numFailures = 0 
+    try:
+        S3 = utils.connect2Service('s3', bucketRegion)
+        dynamodb = utils.connect2Service('dynamodb')
+        myTable = dynamodb.Table(tableName)
+        try:
+            S3.meta.client.head_bucket(Bucket=bucket)
+            myBucket = S3.Bucket(bucket)
+        except ClientError as err:
+            print("Bucket Not Available")
+            print("Error Message: {0}".format(err))
+            numFailures = 9999
+            return numFailures
+        except Exception as err:
+            print("Error Message: {0}".format(err))
+            numFailures = 9999
+            return numFailures
+        #Connect to S3 and get the sample CSV file from the given bucket
+        try:
+            myBucket.download_file(fKey, FName)
+        except Exception as err:
+            print("Error Message: {0}".format(err))
+            print("Failed downloading from S3 bucket.")
+            numFailures = 9999
+            return numFailures
+        print("Loads infection data from the sample CSV file.")
+        with open(FName, newline='') as fh:
+            reader = csv.DictReader(fh, delimiter=DELIMITER)
+            #STUDENT TODO: Add items PatientId, City, Date read from the CSV file to the tableName and region given as input 
+            print("Uploading items ...")
+            for row in reader:
+                try:
+                    resp = myTable.put_item(                  #@Del
+                        Item={                                #@Del
+                            'PatientId': row['PatientId'],    #@Del
+                            'City': row['City'],              #@Del
+                            'Date': row['Date']})             #@Del
+                except Exception as err:
+                    print("Error Message: {0}".format(err))
+                    numFailures += 1
+            print("Uploaded items")
+    except FileNotFoundError as err:
+        print("Failed to add item in {0}".format(tableName))
+        print("Error Message: {0}".format(err))
+        numFailures = 9999
+    except OSError as err:
+        print("Failed to add item in {0}".format(tableName))
+        print("Error Message: {0}".format(err))
+        numFailures = 9999
+    except Exception as err:
+        print("Failed to add item in {0}".format(tableName))
+        print("Error Message: {0}".format(err))
+        numFailures = 9999
+    return numFailures
+
+
+if __name__ == '__main__':
+    print('===============================================================') 
+    print('Lab 3 DynamoDB - Add infections data from the CSV file to Infections table') 
+    print('===============================================================') 
+    loadInfectionsData()
+
+</pre>
+
+
+
+<div class="clear"></div>
+
+<hr />
+<noscript>
+<p>Scripting on this page highlights syntax, but does not change the content in any way.</p>
+
+</noscript>
+
+
+</body>
+</html>
